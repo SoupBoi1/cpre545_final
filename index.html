@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Image Processor on GitHub</title>
+    
+    <!-- Link to PyScript CSS and JS -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        #output-image { max-width: 100%; margin-top: 20px; border: 2px solid #ddd; }
+        .loading { color: gray; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <h1>Python Image Processor</h1>
+    <p>Upload an image to convert it to Grayscale using Python's Pillow library.</p>
+
+    <!-- HTML Form -->
+    <input type="file" id="file-upload" accept="image/*">
+    <div id="status" class="loading">Loading Python environment...</div>
+    
+    <div id="image-container">
+        <img id="output-image" />
+    </div>
+
+    <!-- Define Python dependencies -->
+    <py-config>
+        packages = ["Pillow"]
+    </py-config>
+
+    <!-- The Python Logic -->
+    <script type="py">
+        import asyncio
+        from js import document, Uint8Array, window
+        from pyodide.ffi import create_proxy
+        from PIL import Image
+        import io
+
+        async def process_image(event):
+            status = document.getElementById("status")
+            status.innerText = "Processing..."
+            
+            # Get the file from the input
+            file_list = event.target.files
+            if len(file_list) == 0:
+                return
+            
+            file = file_list.item(0)
+            
+            # Read file as ArrayBuffer
+            array_buffer = await file.arrayBuffer()
+            Uint8_list = Uint8Array.new(array_buffer)
+            
+            # Convert to PIL Image
+            img = Image.open(io.BytesIO(bytes(Uint8_list)))
+            
+            # --- RUN YOUR PYTHON FUNCTION HERE ---
+            # Example: Convert to Grayscale
+            processed_img = img.convert("L")
+            # --------------------------------------
+
+            # Save back to a format the browser can show
+            buffered = io.BytesIO()
+            processed_img.save(buffered, format="PNG")
+            
+            # Create a URL for the image and display it
+            base64_data = window.btoa(window.Uint8Array.new(buffered.getvalue()).to_py().tobytes())
+            document.getElementById("output-image").src = f"data:image/png;base64,{base64_data}"
+            status.innerText = "Done!"
+
+        # Create a proxy for the event listener
+        upload_proxy = create_proxy(process_image)
+        document.getElementById("file-upload").addEventListener("change", upload_proxy)
+        
+        # Mark as ready
+        document.getElementById("status").innerText = "Python is ready!"
+    </script>
+
+</body>
+</html>
